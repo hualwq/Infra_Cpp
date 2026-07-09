@@ -1,0 +1,23 @@
+# Build directories (any depth)
+build/
+
+# IDE / Editor
+.vscode/
+.claude/
+
+# Compiled files
+*.o
+*.obj
+*.out
+*.exe
+*.a
+*.so
+*.dll
+
+# Temp files
+*~
+*.swp
+*.swo
+
+# macOS
+.DS_Store

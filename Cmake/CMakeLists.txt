@@ -1,0 +1,10 @@
+cmake_minimum_required(VERSION 3.10)
+project(Cmake_Learning)
+
+add_subdirectory(case1_hello_library)
+add_subdirectory(case2_include_scope)
+add_subdirectory(case3_link_chain)
+add_subdirectory(case4_interface_lib)
+add_subdirectory(case5_static_library)
+add_subdirectory(case6_shared_library)
+add_subdirectory(case7_public_private_interface)
