@@ -206,7 +206,10 @@ public:
 int main() {
     std::cout << "=== MLIR-style IR skeleton ===\n\n";
 
+    // context全局共享，因为不同的op可以共享相同的SSA value，通俗说就是 opA 和 opB 操作的矩阵维度一样。
     Context ctx;
+
+    // Block 和IR中的Block一样的作用，表示一个容器
     Block entry;
     OpBuilder builder(ctx, entry);
 

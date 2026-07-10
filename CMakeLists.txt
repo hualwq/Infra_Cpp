@@ -3,3 +3,4 @@ project(Learn_Cpp)
 
 add_subdirectory(Cmake)
 add_subdirectory(interview)
+add_subdirectory(Fun_compiler)
