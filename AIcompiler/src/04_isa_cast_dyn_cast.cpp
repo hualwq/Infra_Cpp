@@ -19,6 +19,10 @@ private:
     Kind kind_;
 
 protected:
+    // explicit 作用：禁止隐式转换
+    //   没有 explicit 时，编译器允许：Expr e = Expr::Kind::Constant;  // 隐式调用构造函数
+    //   加了 explicit 后，只能：Expr e(Expr::Kind::Constant);        // 必须显式构造
+    //   这防止了从 Kind 枚举值意外地隐式转换为 Expr 对象，避免语义错误。
     explicit Expr(Kind kind) : kind_(kind) {}
 
 public:

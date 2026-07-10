@@ -103,6 +103,79 @@ AST/IR 中会创建大量小对象和字符串。它们通常生命周期一致�
 3. `StringSaver::save()` 把字符串内容复制进 arena，而不是引用外部 `std::string`。
 4. `arena.reset()` 后旧指针全部失效，这就是 arena 生命周期边界。
 
+#### 完整分配过程示例
+
+下面用一个具体 case 走完 `allocate()` 的完整逻辑。假设 `BlockSize = 4096`，连续做三次分配：
+
+```cpp
+BumpPtrAllocator arena;
+
+void *p1 = arena.allocate(4000);   // ① 第一次分配
+void *p2 = arena.allocate(200);    // ② 第二次分配
+void *p3 = arena.allocate(500);    // ③ 第三次分配
+```
+
+**① 第一次分配 4000 字节：**
+
+`blocks_` 为空 → 进入 `if` 分支，新建 `Block0`（`emplace_back(4096)`）：
+
+```
+blocks_[0] (Block0):
+    bytes: [4096 字节的缓冲区，unique_ptr 管理]
+    used:  4000     ← allocate 里 offset=0, used 更新为 0+4000
+返回: block.bytes.get() + 0  → 指向 Block0 开头
+```
+
+**② 第二次分配 200 字节：**
+
+`Block0` 剩余 `4096 - 4000 = 96` 字节，不够 200 → 进入 `if` 分支，新建 `Block1`：
+
+```
+blocks_[0] (Block0):
+    bytes: [4096 字节]
+    used:  4000     ← 已用满，不再动
+
+blocks_[1] (Block1):  ← 新块
+    bytes: [4096 字节]
+    used:  200      ← offset=0, used 更新为 0+200
+返回: Block1.bytes.get() + 0
+```
+
+**③ 第三次分配 500 字节：**
+
+`Block1` 剩余 `4096 - 200 = 3896`，够用 → 不走 `if`，直接在 `Block1` 里 bump：
+
+```
+blocks_[1] (Block1):
+    bytes: [4096 字节]
+    used:  700      ← offset=200（对齐后仍是200，因为 align=1）, used 更新为 200+500
+返回: Block1.bytes.get() + 200
+```
+
+**最终 `blocks_` 状态：**
+
+```
+blocks_ = [ Block0 , Block1 ]
+            ↑           ↑
+          用满了      用了 700/4096
+```
+
+**如果把第二次分配改成 5000 字节（超过 BlockSize）：**
+
+```cpp
+void *p2 = arena.allocate(5000);   // bytes=5000 > BlockSize
+```
+
+`newBlockSize = bytes > BlockSize ? bytes : BlockSize` → `newBlockSize = 5000`，新建的块大小为 5000 字节，而不是默认的 4096。这保证大对象不会被拒绝，也不会被硬塞进不够大的块里。
+
+**`reset()` 时发生了什么：**
+
+```cpp
+arena.reset();   // → blocks_.clear()
+```
+
+`blocks_.clear()` 销毁每个 `Block` → 每个 `Block` 的 `unique_ptr<char[]>` 析构 → 每块缓冲区被释放。整批释放，没有逐个 free。
+
 学完应该形成的直觉：
 
 Arena allocation 的核心不是“自动内存管理”，而是“生命周期建模”。当一批对象天然一起生、一起死时，arena 非常高效；如果对象需要单独析构或单独释放，就不适合直接塞进 bump allocator。
@@ -148,7 +221,91 @@ CRTP visitor 把通用分发和默认递归放进 `ExprVisitor<Derived>`。基�
 
 学完应该形成的直觉：
 
-CRTP 的价值是“在编译期复用通用算法，同时把定制点留给派生类”。MLIR/LLVM 中很多 visitor、pass、mixin 都是在用这个思路减少样板和虚调用。
+CRTP 的价值是”在编译期复用通用算法，同时把定制点留给派生类”。MLIR/LLVM 中很多 visitor、pass、mixin 都是在用这个思路减少样板和虚调用。
+
+#### CRTP 详解：为什么会有 `ExprVisitor<PrintVisitor>` 这种写法
+
+**CRTP（Curiously Recurring Template Pattern，奇异递归模板模式）** 的核心语法是：**派生类把自己作为模板参数传给基类**。
+
+```cpp
+class PrintVisitor : public ExprVisitor<PrintVisitor>
+//                              ^^^^^^^^^^^^^^^^^^^^
+//                              基类模板参数 = 派生类自身
+```
+
+##### 为什么需要这种写法？
+
+传统虚函数多态在**运行时**通过查虚函数表（vtable）分发，有间接调用开销：
+
+```cpp
+class Base     { virtual void visit() = 0; };
+class Derived : Base { void visit() override { /* ... */ } };
+
+Base* p = new Derived;
+p->visit();   // 运行时查 vtable，有开销
+```
+
+CRTP 用**模板**，让基类在**编译期**就知道派生类的类型，通过 `static_cast<Derived*>(this)` 直接调用，零运行时开销：
+
+```cpp
+template <typename Derived>
+class ExprVisitor {
+protected:
+    Derived& derived() {
+        return *static_cast<Derived*>(this);  // 编译期转型，0 开销
+    }
+public:
+    void visit(Expr* expr) {
+        switch (expr->kind()) {
+        case Constant:
+            derived().visitConstant(...);  // 编译期直接调用 PrintVisitor::visitConstant，可内联
+            break;
+        case Add:
+            derived().visitAdd(...);
+            break;
+        }
+    }
+};
+```
+
+##### 模板参数 `To` / `From` 的类比理解
+
+CRTP 里的 `Derived` 和 `isa` 里的 `To` / `From` 是同一个思路——**模板参数代表类型转换的两端**：
+
+```cpp
+// isa 里：From 由编译器自动推导，To 由你显式指定
+template <typename To, typename From>
+bool isa(const From *value);
+
+isa<ConstantExpr>(e);
+//   ↑To          ↑From 由 e 的类型自动推导
+
+// CRTP 里：Derived 由你显式指定，基类在编译期拿到它
+template <typename Derived>
+class ExprVisitor { ... };
+
+class PrintVisitor : public ExprVisitor<PrintVisitor>;
+//                                    ↑Derived = PrintVisitor，编译期已知
+```
+
+##### CRTP vs 虚函数多态对比
+
+| | 虚函数 | CRTP |
+|---|---|---|
+| 分发时机 | 运行时查 vtable | 编译期确定，可内联 |
+| 性能 | 有间接调用开销 | 零开销（static_cast 编译期决议） |
+| 灵活性 | 可以放入容器中统一管理（通过基类指针） | 每个派生类是独立类型，不能放同一个容器 |
+| 语法 | 自然直观 | 初看怪异（`class A : Base<A>`） |
+| 适用场景 | 需要运行时多态、对象需要放入容器 | 性能敏感路径、框架骨架代码 |
+
+##### 为什么 LLVM/MLIR 大量使用 CRTP？
+
+LLVM/MLIR 的 IR 遍历（visitor、pass、pattern rewrite）是**性能敏感路径**，而且 visitor 的种类在编译期就是确定的（不会在运行时动态增减 visitor 类型）。CRTP 正好满足这两个需求：
+
+1. **编译期多态 + 零开销抽象** — visitor 的 `visitXxx` 调用可以被内联，没有 vtable 间接跳转
+2. **代码复用** — 通用分发逻辑（`visit` 按 Kind 分发、`walkBinary` 递归）写在基类模板里，所有 visitor 复用，派生类只覆盖关心的节点
+
+这就是 `PrintVisitor` 和 `CostVisitor` 能共享同一套 `ExprVisitor` 遍历框架，又各自定制行为的原因。
 
 ### 6. `src/06_mlir_style_ir.cpp`
 
