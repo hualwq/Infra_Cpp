@@ -1,93 +1,95 @@
 # Learn Cpp Infra Basics
 
-这个仓库是学习 compiler infra 和现代 C++ 基础知识时整理的一组小 demo。内容主要围绕三块：编译器相关 C++ 设计模式、CMake 工程组织方式、常见 C++ 语言特性，以及 C++ 面试常见问题。
+[中文版](ReadMe_zh.md)
 
-仓库里的代码不追求做成完整项目，重点是把每个知识点拆成可以单独编译、单独阅读的小例子，方便在学习 LLVM/MLIR、TVM 或其他 infra 项目源码时建立直觉。
+This repository is a collection of small demos organized while learning compiler infrastructure and modern C++ fundamentals. The content focuses on three main areas: compiler-related C++ design patterns, CMake project organization, common C++ language features, and frequently asked C++ interview questions.
 
-## 目录概览
+The code in this repository is not intended to be a complete project. The emphasis is on breaking down each concept into small, independently compilable and readable examples, making it easier to build intuition when reading source code from LLVM/MLIR, TVM, or other infrastructure projects.
+
+## Directory Overview
 
 ### `Cpp_prim/`
 
-这一部分主要是面向 LLVM/MLIR 风格代码的 C++ 基础练习。内容包括非拥有视图、SmallVector、小对象优化、arena/bump allocator、LLVM 风格 RTTI、CRTP visitor、MLIR 风格 IR 结构，以及一些支撑 compiler infra 的常见工具模式。
+This section focuses on C++ basics oriented toward LLVM/MLIR-style code. It covers non-owning views, SmallVector, small object optimization, arena/bump allocators, LLVM-style RTTI, CRTP visitors, MLIR-style IR structures, and common utility patterns that support compiler infrastructure.
 
-这些例子适合在读 LLVM/MLIR 代码前先过一遍，重点理解 compiler 项目里为什么大量使用 `StringRef`、`ArrayRef`、`SmallVector`、`isa/cast/dyn_cast`、visitor 和 arena 生命周期管理。
+These examples are best reviewed before diving into LLVM/MLIR code, with a focus on understanding why compiler projects make heavy use of `StringRef`, `ArrayRef`, `SmallVector`, `isa/cast/dyn_cast`, visitors, and arena lifetime management.
 
-**包含示例：**
-- `01_string_ref_array_ref.cpp` - 非拥有视图（StringRef/ArrayRef）
-- `02_small_vector.cpp` - 小对象优化（SmallVector）
-- `03_bump_ptr_allocator.cpp` - Arena 分配器
-- `04_isa_cast_dyn_cast.cpp` - LLVM 风格 RTTI
-- `05_crtp_visitor.cpp` - CRTP 静态多态与 Visitor 模式
-- `06_mlir_style_ir.cpp` - MLIR 风格 IR 结构
-- `07_support_patterns.cpp` - LLVM Support 工具模式
+**Included examples:**
+- `01_string_ref_array_ref.cpp` - Non-owning views (StringRef/ArrayRef)
+- `02_small_vector.cpp` - Small object optimization (SmallVector)
+- `03_bump_ptr_allocator.cpp` - Arena allocator
+- `04_isa_cast_dyn_cast.cpp` - LLVM-style RTTI
+- `05_crtp_visitor.cpp` - CRTP static polymorphism and Visitor pattern
+- `06_mlir_style_ir.cpp` - MLIR-style IR structure
+- `07_support_patterns.cpp` - LLVM Support utility patterns
 
-详细学习笔记见：`Cpp_prim/ReadMe.md`
+Detailed study notes: `Cpp_prim/ReadMe.md`
 
 ### `Fun_Cpp/`
 
-这一部分整理的是更通用的 C++ 语言基础和常见技巧，包括 lambda、虚函数、多态、智能指针、模板、TVM object system 的简化理解、visitor 分发以及宏相关用法。
+This section covers more general C++ language fundamentals and common techniques, including lambdas, virtual functions, polymorphism, smart pointers, templates, a simplified understanding of the TVM object system, visitor dispatch, and macro-related usage.
 
-这些例子更偏语言特性本身，适合作为阅读 infra 源码前的补充。很多大型 C++ 项目会把模板、宏、多态、对象系统和 visitor 混合使用，先用小 demo 看清每个机制，会更容易理解真实项目里的抽象。
+These examples focus more on the language features themselves and serve as a supplement before reading infrastructure source code. Many large C++ projects mix templates, macros, polymorphism, object systems, and visitors; understanding each mechanism through small demos first makes it easier to grasp the abstractions in real projects.
 
-**包含示例：**
-- `1_lambda.cpp` - Lambda 表达式
-- `2_virtualFunc.cpp` - 虚函数与多态
-- `3_smart_ptr.cpp` - 智能指针（unique_ptr/shared_ptr/weak_ptr）
-- `4_templates.cpp` - 模板编程
-- `5_tvm_object_system.cpp` - TVM Object System 简化理解
-- `6_defile_visitor.cpp` - Visitor 模式详解
-- `7_macros.cpp` - 宏相关用法
-- `8_function.cpp` - 函数相关特性
+**Included examples:**
+- `1_lambda.cpp` - Lambda expressions
+- `2_virtualFunc.cpp` - Virtual functions and polymorphism
+- `3_smart_ptr.cpp` - Smart pointers (unique_ptr/shared_ptr/weak_ptr)
+- `4_templates.cpp` - Template programming
+- `5_tvm_object_system.cpp` - Simplified TVM Object System
+- `6_defile_visitor.cpp` - Visitor pattern in detail
+- `7_macros.cpp` - Macro-related usage
+- `8_function.cpp` - Function-related features
 
 ### `Fun_compiler/`
 
-一个迷你的 AI 编译器流水线 demo，展示从计算图定义到编译执行的基本过程。包含：
+A mini AI compiler pipeline demo, showing the basic process from computation graph definition to compiled execution. Includes:
 
-- **计算图 IR** - 定义算子（Mul/Add/Relu）和数据流
-- **编译器 Pass** - 算子融合优化（fuse Mul+Add+Relu）
-- **代码生成** -  lowering 到 kernel 函数
-- **执行模式** - AOT（提前编译）和 JIT（即时编译）两种模式
+- **Computation Graph IR** - Defining operators (Mul/Add/Relu) and data flow
+- **Compiler Passes** - Operator fusion optimization (fuse Mul+Add+Relu)
+- **Code Generation** - Lowering to kernel functions
+- **Execution Modes** - Both AOT (ahead-of-time) and JIT (just-in-time) modes
 
-这个 demo 适合理解 AI 编译器的核心概念：计算图表示、图优化、代码生成。
+This demo is suitable for understanding core AI compiler concepts: computation graph representation, graph optimization, and code generation.
 
 ### `Cmake/`
 
-这一部分是 CMake 工程组织的基础练习，按 case 拆分不同场景。内容覆盖最基础的可执行文件和库构建、头文件 include 作用域、库之间的链接依赖、interface library、static library、shared library，以及 `PUBLIC` / `PRIVATE` / `INTERFACE` 在真实 target 依赖中的传递规则。
+This section covers basic CMake project organization, split into cases for different scenarios. It covers the most basic executable and library builds, header file include scope, inter-library link dependencies, interface libraries, static libraries, shared libraries, and the propagation rules of `PUBLIC` / `PRIVATE` / `INTERFACE` in real target dependencies.
 
-这些 demo 主要帮助理解现代 CMake 的 target-based 写法：不要只把 CMake 当成编译脚本，而是把每个库、可执行文件和依赖关系都建模成 target。
+These demos mainly help understand modern CMake's target-based approach: don't just treat CMake as a build script, but model each library, executable, and dependency as a target.
 
-**包含案例：**
-- `case1_hello_library` - 基础库和可执行文件构建
-- `case2_include_scope` - 头文件包含作用域
-- `case3_link_chain` - 库链接依赖链
-- `case4_interface_lib` - Interface 库
-- `case5_static_library` - 静态库
-- `case6_shared_library` - 动态库
-- `case7_public_private_interface` - PUBLIC/PRIVATE/INTERFACE 传递规则
+**Included cases:**
+- `case1_hello_library` - Basic library and executable build
+- `case2_include_scope` - Header file include scope
+- `case3_link_chain` - Library link dependency chain
+- `case4_interface_lib` - Interface library
+- `case5_static_library` - Static library
+- `case6_shared_library` - Shared library
+- `case7_public_private_interface` - PUBLIC/PRIVATE/INTERFACE propagation rules
 
 ### `interview/`
 
-C++ 面试常见问题整理，包含代码示例和详细讲解：
+A collection of common C++ interview questions, with code examples and detailed explanations:
 
-- **智能指针** - unique_ptr/shared_ptr/weak_ptr 的原理和使用场景
-- **类型转换** - static_cast/dynamic_cast/const_cast/reinterpret_cast 对比
-- **虚函数机制** - 虚函数表、多态实现原理
-- **内存管理** - 堆与栈的区别、new/delete vs malloc/free
-- **Move 语义** - 右值引用、std::move、完美转发
+- **Smart Pointers** - Principles and usage scenarios of unique_ptr/shared_ptr/weak_ptr
+- **Type Casting** - Comparison of static_cast/dynamic_cast/const_cast/reinterpret_cast
+- **Virtual Function Mechanism** - Virtual function table, polymorphism implementation principles
+- **Memory Management** - Heap vs. stack, new/delete vs. malloc/free
+- **Move Semantics** - Rvalue references, std::move, perfect forwarding
 
-详细面试笔记见：`interview/interview.md`
+Detailed interview notes: `interview/interview.md`
 
-## 推荐学习顺序
+## Recommended Learning Order
 
-1. 先看 `Fun_Cpp/`，补齐 C++ 语言特性和常见写法
-2. 再看 `Cmake/`，理解代码如何被组织、编译和链接
-3. 接着看 `Cpp_prim/`，把 C++ 机制放到 compiler infra 的语境里理解
-4. 最后看 `Fun_compiler/`，理解这些知识如何组合成一个简单的编译器
-5. `interview/` 可以在任何阶段作为查漏补缺的参考
+1. Start with `Fun_Cpp/` to fill in C++ language features and common patterns
+2. Then review `Cmake/` to understand how code is organized, compiled, and linked
+3. Next, go through `Cpp_prim/` to understand C++ mechanisms in the context of compiler infrastructure
+4. Finally, review `Fun_compiler/` to see how these concepts combine into a simple compiler
+5. `interview/` can be used as a reference for filling gaps at any stage
 
-## 构建方式
+## Build Instructions
 
-### 根目录构建（构建所有子项目）
+### Build from Root Directory (build all subprojects)
 
 ```bash
 mkdir -p build && cd build
@@ -95,21 +97,21 @@ cmake ..
 make
 ```
 
-### 单独构建子项目
+### Build Subprojects Individually
 
-**Cpp_prim/：**
+**Cpp_prim/:**
 ```bash
 cd Cpp_prim
 cmake -S . -B build
 cmake --build build
 
-# 运行示例
+# Run examples
 ./build/01_string_ref_array_ref
 ./build/02_small_vector
 # ...
 ```
 
-**Fun_compiler/：**
+**Fun_compiler/:**
 ```bash
 cd Fun_compiler
 cmake -S . -B build
@@ -117,36 +119,36 @@ cmake --build build
 ./build/fun_compiler
 ```
 
-**Cmake/ 案例：**
+**Cmake/ cases:**
 ```bash
 cd Cmake/case1_hello_library
 cmake -S . -B build
 cmake --build build
 ```
 
-**Fun_Cpp/ 和 interview/：**
-这些目录中的文件更偏单文件示例，可以直接用 `g++` 或 `clang++` 编译运行：
+**Fun_Cpp/ and interview/:**
+These directories contain single-file examples that can be compiled and run directly with `g++` or `clang++`:
 ```bash
 g++ -std=c++17 -Wall -Wextra -pedantic 1_lambda.cpp -o lambda
 ./lambda
 ```
 
-## 依赖环境
+## Dependencies
 
-- C++ 编译器：支持 C++17 标准（g++ 7+ 或 clang++ 5+）
-- CMake：3.10 及以上版本
-- 构建工具：Make 或 Ninja
+- C++ Compiler: C++17 support required (g++ 7+ or clang++ 5+)
+- CMake: Version 3.10 or above
+- Build Tool: Make or Ninja
 
-## 参考资料
+## References
 
 - [LLVM Programmer's Manual](https://llvm.org/docs/ProgrammersManual.html)
 - [MLIR Tutorial](https://mlir.llvm.org/docs/Tutorials/)
 - [CMake Documentation](https://cmake.org/documentation/)
 - [C++ Reference](https://en.cppreference.com/)
 
-## 贡献
+## Contributing
 
-这个仓库是个人学习笔记，欢迎提出建议和修正。如有问题，请提交 issue 或 pull request。
+This repository is a personal study notebook. Suggestions and corrections are welcome. If you have any questions, please submit an issue or pull request.
 
 ## License
 
